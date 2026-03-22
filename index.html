@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tetris Pro - 俄罗斯方块</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-panel: #1a1a24;
+            --border-color: #2a2a3a;
+            --accent-cyan: #00f5d4;
+            --accent-pink: #f72585;
+            --accent-purple: #7209b7;
+            --text-primary: #ffffff;
+            --text-secondary: #8888aa;
+            --grid-line: #1a1a2e;
+            
+            --block-i: #00f5d4;
+            --block-o: #ffd60a;
+            --block-t: #7209b7;
+            --block-l: #ff6d00;
+            --block-j: #3a86ff;
+            --block-s: #38b000;
+            --block-z: #e63946;
+            
+            --cell-size: 28px;
+            --preview-cell-size: 28px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(ellipse at 20% 20%, rgba(114, 9, 183, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(0, 245, 212, 0.1) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(247, 37, 133, 0.05) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .game-container {
+            max-width: 1200px;
+            width: 100%;
+            padding: 24px;
+            display: flex;
+            gap: 32px;
+            justify-content: center;
+            align-items: flex-start;
+            position: relative;
+            z-index: 1;
+        }
+
+        .game-board-wrapper {
+            position: relative;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 4px;
+            box-shadow: 
+                0 0 40px rgba(0, 245, 212, 0.1),
+                inset 0 0 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(10, var(--cell-size));
+            grid-template-rows: repeat(20, var(--cell-size));
+            background: var(--bg-primary);
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            border: 1px solid var(--grid-line);
+            background: transparent;
+            transition: background-color 0.05s ease;
+        }
+
+        .cell.filled {
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .cell.block-i { background: var(--block-i); box-shadow: inset 0 0 15px rgba(255,255,255,0.3), 0 0 10px var(--block-i); }
+        .cell.block-o { background: var(--block-o); box-shadow: inset 0 0 15px rgba(255,255,255,0.3), 0 0 10px var(--block-o); }
+        .cell.block-t { background: var(--block-t); box-shadow: inset 0 0 15px rgba(255,255,255,0.3), 0 0 10px var(--block-t); }
+        .cell.block-l { background: var(--block-l); box-shadow: inset 0 0 15px rgba(255,255,255,0.3), 0 0 10px var(--block-l); }
+        .cell.block-j { background: var(--block-j); box-shadow: inset 0 0 15px rgba(255,255,255,0.3), 0 0 10px var(--block-j); }
+        .cell.block-s { background: var(--block-s); box-shadow: inset 0 0 15px rgba(255,255,255,0.3), 0 0 10px var(--block-s); }
+        .cell.block-z { background: var(--block-z); box-shadow: inset 0 0 15px rgba(255,255,255,0.3), 0 0 10px var(--block-z); }
+
+        .cell.ghost {
+            opacity: 0.3;
+        }
+
+        .cell.clearing {
+            animation: clearRow 0.3s ease-out;
+        }
+
+        @keyframes clearRow {
+            0% { transform: scale(1); filter: brightness(2); }
+            50% { transform: scale(1.1); filter: brightness(3); }
+            100% { transform: scale(0); opacity: 0; }
+        }
+
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-width: 200px;
+        }
+
+        .panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .panel-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 16px;
+        }
+
+        .score-display {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 42px;
+            font-weight: 900;
+            color: var(--accent-cyan);
+            text-shadow: 0 0 20px var(--accent-cyan);
+            text-align: center;
+            line-height: 1;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 12px 8px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--accent-pink);
+        }
+
+        .preview-area {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 120px;
+        }
+
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(4, var(--preview-cell-size));
+            grid-template-rows: repeat(4, var(--preview-cell-size));
+            gap: 2px;
+            background: var(--bg-primary);
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .preview-cell {
+            width: var(--preview-cell-size);
+            height: var(--preview-cell-size);
+            border-radius: 4px;
+            background: transparent;
+        }
+
+        .preview-cell.block-i { background: var(--block-i); }
+        .preview-cell.block-o { background: var(--block-o); }
+        .preview-cell.block-t { background: var(--block-t); }
+        .preview-cell.block-l { background: var(--block-l); }
+        .preview-cell.block-j { background: var(--block-j); }
+        .preview-cell.block-s { background: var(--block-s); }
+        .preview-cell.block-z { background: var(--block-z); }
+
+        .controls-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .btn {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            padding: 14px 24px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent-cyan);
+            box-shadow: 0 4px 20px rgba(0, 245, 212, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            border-color: var(--accent-cyan);
+            color: var(--bg-primary);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 4px 30px rgba(0, 245, 212, 0.5);
+        }
+
+        .btn-danger {
+            border-color: var(--accent-pink);
+            color: var(--accent-pink);
+        }
+
+        .btn-danger:hover {
+            background: var(--accent-pink);
+            color: var(--bg-primary);
+            box-shadow: 0 4px 20px rgba(247, 37, 133, 0.4);
+        }
+
+        .game-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 15, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            border-radius: 8px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 10;
+        }
+
+        .game-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .overlay-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 32px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+        }
+
+        .overlay-title.paused {
+            color: var(--accent-cyan);
+            text-shadow: 0 0 30px var(--accent-cyan);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .overlay-title.gameover {
+            color: var(--accent-pink);
+            text-shadow: 0 0 30px var(--accent-pink);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .overlay-score {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 18px;
+            color: var(--text-secondary);
+        }
+
+        .overlay-score span {
+            color: var(--accent-cyan);
+            font-weight: 700;
+            font-size: 24px;
+        }
+
+        .keyboard-hints {
+            margin-top: 8px;
+        }
+
+        .hint-row {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .key {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 36px;
+            height: 32px;
+            padding: 0 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .key.wide {
+            min-width: 80px;
+        }
+
+        .game-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 48px;
+            font-weight: 900;
+            text-align: center;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple), var(--accent-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: none;
+            letter-spacing: 4px;
+        }
+
+        .game-subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 24px;
+            letter-spacing: 2px;
+        }
+
+        @media (max-width: 900px) {
+            :root {
+                --cell-size: 22px;
+                --preview-cell-size: 22px;
+            }
+
+            .game-container {
+                flex-direction: column;
+                align-items: center;
+                padding: 16px;
+            }
+
+            .side-panel {
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+                width: 100%;
+                max-width: 500px;
+            }
+
+            .panel {
+                flex: 1;
+                min-width: 150px;
+            }
+
+            .game-title {
+                font-size: 32px;
+            }
+
+            .score-display {
+                font-size: 32px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 500px) {
+            :root {
+                --cell-size: 16px;
+                --preview-cell-size: 20px;
+            }
+
+            .game-board {
+                border-radius: 4px;
+            }
+
+            .game-title {
+                font-size: 24px;
+            }
+
+            .side-panel {
+                flex-direction: column;
+            }
+
+            .panel {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="main-area">
+            <h1 class="game-title">TETRIS PRO</h1>
+            <p class="game-subtitle">经典俄罗斯方块</p>
+            <div class="game-board-wrapper">
+                <div class="game-board" id="gameBoard"></div>
+                <div class="game-overlay" id="overlay">
+                    <div class="overlay-title paused" id="overlayTitle">已暂停</div>
+                    <div class="overlay-score" id="overlayScore"></div>
+                    <button class="btn btn-primary" id="overlayBtn">继续游戏</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="side-panel">
+            <div class="panel">
+                <div class="panel-title">分数</div>
+                <div class="score-display" id="score">0</div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">等级</div>
+                        <div class="stat-value" id="level">1</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">行数</div>
+                        <div class="stat-value" id="lines">0</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <div class="panel-title">下一个</div>
+                <div class="preview-area">
+                    <div class="preview-grid" id="previewGrid"></div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <div class="panel-title">控制</div>
+                <div class="controls-section">
+                    <button class="btn btn-primary" id="startBtn">开始游戏</button>
+                    <button class="btn" id="pauseBtn" disabled>暂停</button>
+                    <button class="btn btn-danger" id="restartBtn">重新开始</button>
+                </div>
+                <div class="keyboard-hints">
+                    <div class="hint-row">
+                        <span class="key">←</span>
+                        <span class="key">→</span>
+                        <span class="key">移动</span>
+                    </div>
+                    <div class="hint-row">
+                        <span class="key">↑</span>
+                        <span class="key">旋转</span>
+                    </div>
+                    <div class="hint-row">
+                        <span class="key">↓</span>
+                        <span class="key">软降</span>
+                    </div>
+                    <div class="hint-row">
+                        <span class="key wide">空格</span>
+                        <span class="key">硬降</span>
+                    </div>
+                    <div class="hint-row">
+                        <span class="key wide">P</span>
+                        <span class="key">暂停</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const COLS = 10;
+        const ROWS = 20;
+        const EMPTY = 'empty';
+
+        const SHAPES = {
+            I: {
+                shape: [[0,0,0,0], [1,1,1,1], [0,0,0,0], [0,0,0,0]],
+                color: 'block-i'
+            },
+            O: {
+                shape: [[1,1], [1,1]],
+                color: 'block-o'
+            },
+            T: {
+                shape: [[0,1,0], [1,1,1], [0,0,0]],
+                color: 'block-t'
+            },
+            L: {
+                shape: [[0,0,1], [1,1,1], [0,0,0]],
+                color: 'block-l'
+            },
+            J: {
+                shape: [[1,0,0], [1,1,1], [0,0,0]],
+                color: 'block-j'
+            },
+            S: {
+                shape: [[0,1,1], [1,1,0], [0,0,0]],
+                color: 'block-s'
+            },
+            Z: {
+                shape: [[1,1,0], [0,1,1], [0,0,0]],
+                color: 'block-z'
+            }
+        };
+
+        const PIECE_NAMES = ['I', 'O', 'T', 'L', 'J', 'S', 'Z'];
+
+        class Tetris {
+            constructor() {
+                this.board = [];
+                this.currentPiece = null;
+                this.nextPiece = null;
+                this.score = 0;
+                this.level = 1;
+                this.lines = 0;
+                this.gameState = 'ready';
+                this.dropInterval = 1000;
+                this.lastDropTime = 0;
+                this.animationId = null;
+                this.isPaused = false;
+                this.bag = [];
+                
+                this.gameBoard = document.getElementById('gameBoard');
+                this.previewGrid = document.getElementById('previewGrid');
+                this.scoreDisplay = document.getElementById('score');
+                this.levelDisplay = document.getElementById('level');
+                this.linesDisplay = document.getElementById('lines');
+                this.overlay = document.getElementById('overlay');
+                this.overlayTitle = document.getElementById('overlayTitle');
+                this.overlayScore = document.getElementById('overlayScore');
+                this.overlayBtn = document.getElementById('overlayBtn');
+                this.startBtn = document.getElementById('startBtn');
+                this.pauseBtn = document.getElementById('pauseBtn');
+                this.restartBtn = document.getElementById('restartBtn');
+
+                this.init();
+                this.bindEvents();
+            }
+
+            init() {
+                this.createBoard();
+                this.createPreviewGrid();
+            }
+
+            createBoard() {
+                this.gameBoard.innerHTML = '';
+                for (let row = 0; row < ROWS; row++) {
+                    this.board[row] = [];
+                    for (let col = 0; col < COLS; col++) {
+                        this.board[row][col] = EMPTY;
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.dataset.row = row;
+                        cell.dataset.col = col;
+                        this.gameBoard.appendChild(cell);
+                    }
+                }
+            }
+
+            createPreviewGrid() {
+                this.previewGrid.innerHTML = '';
+                for (let i = 0; i < 16; i++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'preview-cell';
+                    this.previewGrid.appendChild(cell);
+                }
+            }
+
+            bindEvents() {
+                document.addEventListener('keydown', (e) => this.handleKeyDown(e));
+                this.startBtn.addEventListener('click', () => this.startGame());
+                this.pauseBtn.addEventListener('click', () => this.togglePause());
+                this.restartBtn.addEventListener('click', () => this.restartGame());
+                this.overlayBtn.addEventListener('click', () => this.handleOverlayClick());
+            }
+
+            getNextPieceFromBag() {
+                if (this.bag.length === 0) {
+                    this.bag = [...PIECE_NAMES];
+                    for (let i = this.bag.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [this.bag[i], this.bag[j]] = [this.bag[j], this.bag[i]];
+                    }
+                }
+                return this.bag.pop();
+            }
+
+            createPiece(type) {
+                const pieceData = SHAPES[type];
+                return {
+                    type: type,
+                    shape: pieceData.shape.map(row => [...row]),
+                    color: pieceData.color,
+                    x: Math.floor((COLS - pieceData.shape[0].length) / 2),
+                    y: 0
+                };
+            }
+
+            startGame() {
+                if (this.gameState === 'ready' || this.gameState === 'gameover') {
+                    this.resetGame();
+                    this.gameState = 'playing';
+                    this.startBtn.textContent = '游戏中';
+                    this.startBtn.disabled = true;
+                    this.pauseBtn.disabled = false;
+                    this.hideOverlay();
+                    this.spawnPiece();
+                    this.gameLoop();
+                }
+            }
+
+            resetGame() {
+                this.board = [];
+                for (let row = 0; row < ROWS; row++) {
+                    this.board[row] = [];
+                    for (let col = 0; col < COLS; col++) {
+                        this.board[row][col] = EMPTY;
+                    }
+                }
+                this.score = 0;
+                this.level = 1;
+                this.lines = 0;
+                this.dropInterval = 1000;
+                this.bag = [];
+                this.updateDisplay();
+                this.renderBoard();
+            }
+
+            spawnPiece() {
+                if (this.nextPiece === null) {
+                    const type = this.getNextPieceFromBag();
+                    this.currentPiece = this.createPiece(type);
+                } else {
+                    this.currentPiece = this.nextPiece;
+                }
+
+                const type = this.getNextPieceFromBag();
+                this.nextPiece = this.createPiece(type);
+
+                this.renderPreview();
+
+                if (this.checkCollision(this.currentPiece.x, this.currentPiece.y, this.currentPiece.shape)) {
+                    this.gameOver();
+                }
+            }
+
+            renderPreview() {
+                const cells = this.previewGrid.querySelectorAll('.preview-cell');
+                cells.forEach(cell => cell.className = 'preview-cell');
+
+                if (!this.nextPiece) return;
+
+                const shape = this.nextPiece.shape;
+                const offsetX = Math.floor((4 - shape[0].length) / 2);
+                const offsetY = Math.floor((4 - shape.length) / 2);
+
+                for (let row = 0; row < shape.length; row++) {
+                    for (let col = 0; col < shape[row].length; col++) {
+                        if (shape[row][col]) {
+                            const index = (row + offsetY) * 4 + (col + offsetX);
+                            if (cells[index]) {
+                                cells[index].classList.add(this.nextPiece.color);
+                            }
+                        }
+                    }
+                }
+            }
+
+            handleKeyDown(e) {
+                if (this.gameState !== 'playing') return;
+                if (this.isPaused) {
+                    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+                        this.togglePause();
+                    }
+                    return;
+                }
+
+                switch(e.key) {
+                    case 'ArrowLeft':
+                    case 'a':
+                    case 'A':
+                        e.preventDefault();
+                        this.movePiece(-1, 0);
+                        break;
+                    case 'ArrowRight':
+                    case 'd':
+                    case 'D':
+                        e.preventDefault();
+                        this.movePiece(1, 0);
+                        break;
+                    case 'ArrowDown':
+                    case 's':
+                    case 'S':
+                        e.preventDefault();
+                        this.movePiece(0, 1);
+                        break;
+                    case 'ArrowUp':
+                    case 'w':
+                    case 'W':
+                        e.preventDefault();
+                        this.rotatePiece();
+                        break;
+                    case ' ':
+                        e.preventDefault();
+                        this.hardDrop();
+                        break;
+                    case 'p':
+                    case 'P':
+                    case 'Escape':
+                        e.preventDefault();
+                        this.togglePause();
+                        break;
+                }
+            }
+
+            movePiece(dx, dy) {
+                if (!this.currentPiece) return;
+
+                const newX = this.currentPiece.x + dx;
+                const newY = this.currentPiece.y + dy;
+
+                if (!this.checkCollision(newX, newY, this.currentPiece.shape)) {
+                    this.currentPiece.x = newX;
+                    this.currentPiece.y = newY;
+                    this.renderBoard();
+                    return true;
+                }
+
+                if (dy > 0) {
+                    this.lockPiece();
+                    this.clearLines();
+                    this.spawnPiece();
+                }
+                return false;
+            }
+
+            rotatePiece() {
+                if (!this.currentPiece) return;
+
+                const rotated = this.rotateMatrix(this.currentPiece.shape);
+                const kicks = [0, -1, 1, -2, 2];
+
+                for (const kick of kicks) {
+                    const newX = this.currentPiece.x + kick;
+                    if (!this.checkCollision(newX, this.currentPiece.y, rotated)) {
+                        this.currentPiece.shape = rotated;
+                        this.currentPiece.x = newX;
+                        this.renderBoard();
+                        return;
+                    }
+                }
+            }
+
+            rotateMatrix(matrix) {
+                const rows = matrix.length;
+                const cols = matrix[0].length;
+                const rotated = [];
+                for (let col = 0; col < cols; col++) {
+                    rotated[col] = [];
+                    for (let row = rows - 1; row >= 0; row--) {
+                        rotated[col][rows - 1 - row] = matrix[row][col];
+                    }
+                }
+                return rotated;
+            }
+
+            hardDrop() {
+                if (!this.currentPiece) return;
+
+                while (!this.checkCollision(this.currentPiece.x, this.currentPiece.y + 1, this.currentPiece.shape)) {
+                    this.currentPiece.y++;
+                }
+                this.lockPiece();
+                this.clearLines();
+                this.spawnPiece();
+                this.renderBoard();
+            }
+
+            checkCollision(x, y, shape) {
+                for (let row = 0; row < shape.length; row++) {
+                    for (let col = 0; col < shape[row].length; col++) {
+                        if (shape[row][col]) {
+                            const newX = x + col;
+                            const newY = y + row;
+
+                            if (newX < 0 || newX >= COLS || newY >= ROWS) {
+                                return true;
+                            }
+
+                            if (newY >= 0 && this.board[newY][newX] !== EMPTY) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+
+            lockPiece() {
+                if (!this.currentPiece) return;
+
+                const shape = this.currentPiece.shape;
+                for (let row = 0; row < shape.length; row++) {
+                    for (let col = 0; col < shape[row].length; col++) {
+                        if (shape[row][col]) {
+                            const boardY = this.currentPiece.y + row;
+                            const boardX = this.currentPiece.x + col;
+                            if (boardY >= 0) {
+                                this.board[boardY][boardX] = this.currentPiece.color;
+                            }
+                        }
+                    }
+                }
+            }
+
+            clearLines() {
+                let linesCleared = 0;
+
+                for (let row = ROWS - 1; row >= 0; row--) {
+                    if (this.isLineFull(row)) {
+                        this.board.splice(row, 1);
+                        this.board.unshift(Array(COLS).fill(EMPTY));
+                        linesCleared++;
+                        row++;
+                    }
+                }
+
+                if (linesCleared > 0) {
+                    this.lines += linesCleared;
+                    this.score += this.calculateScore(linesCleared);
+                    this.level = Math.floor(this.lines / 10) + 1;
+                    this.dropInterval = Math.max(100, 1000 - (this.level - 1) * 100);
+                    this.updateDisplay();
+                    this.renderBoard();
+                }
+            }
+
+            isLineFull(row) {
+                for (let col = 0; col < COLS; col++) {
+                    if (this.board[row][col] === EMPTY) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            calculateScore(lines) {
+                const baseScores = [0, 100, 300, 500, 800];
+                return baseScores[lines] * this.level;
+            }
+
+            updateDisplay() {
+                this.scoreDisplay.textContent = this.score;
+                this.levelDisplay.textContent = this.level;
+                this.linesDisplay.textContent = this.lines;
+            }
+
+            renderBoard() {
+                const cells = this.gameBoard.querySelectorAll('.cell');
+                cells.forEach(cell => {
+                    const row = parseInt(cell.dataset.row);
+                    const col = parseInt(cell.dataset.col);
+                    cell.className = 'cell';
+                    if (this.board[row][col] !== EMPTY) {
+                        cell.classList.add('filled', this.board[row][col]);
+                    }
+                });
+
+                if (this.currentPiece && this.gameState === 'playing') {
+                    this.renderGhostPiece();
+                    this.renderCurrentPiece();
+                }
+            }
+
+            renderGhostPiece() {
+                let ghostY = this.currentPiece.y;
+                while (!this.checkCollision(this.currentPiece.x, ghostY + 1, this.currentPiece.shape)) {
+                    ghostY++;
+                }
+
+                const shape = this.currentPiece.shape;
+                for (let row = 0; row < shape.length; row++) {
+                    for (let col = 0; col < shape[row].length; col++) {
+                        if (shape[row][col]) {
+                            const boardY = ghostY + row;
+                            const boardX = this.currentPiece.x + col;
+                            if (boardY >= 0 && boardY < ROWS && boardX >= 0 && boardX < COLS) {
+                                const cell = this.gameBoard.querySelector(`[data-row="${boardY}"][data-col="${boardX}"]`);
+                                if (cell && !cell.classList.contains('filled')) {
+                                    cell.classList.add('ghost', this.currentPiece.color);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            renderCurrentPiece() {
+                const shape = this.currentPiece.shape;
+                for (let row = 0; row < shape.length; row++) {
+                    for (let col = 0; col < shape[row].length; col++) {
+                        if (shape[row][col]) {
+                            const boardY = this.currentPiece.y + row;
+                            const boardX = this.currentPiece.x + col;
+                            if (boardY >= 0 && boardY < ROWS && boardX >= 0 && boardX < COLS) {
+                                const cell = this.gameBoard.querySelector(`[data-row="${boardY}"][data-col="${boardX}"]`);
+                                if (cell) {
+                                    cell.className = 'cell filled ' + this.currentPiece.color;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            gameLoop(timestamp = 0) {
+                if (this.gameState !== 'playing') return;
+                if (this.isPaused) {
+                    this.animationId = requestAnimationFrame((t) => this.gameLoop(t));
+                    return;
+                }
+
+                if (timestamp - this.lastDropTime > this.dropInterval) {
+                    this.movePiece(0, 1);
+                    this.lastDropTime = timestamp;
+                }
+
+                this.animationId = requestAnimationFrame((t) => this.gameLoop(t));
+            }
+
+            togglePause() {
+                if (this.gameState !== 'playing') return;
+
+                this.isPaused = !this.isPaused;
+                
+                if (this.isPaused) {
+                    this.showPauseOverlay();
+                    this.pauseBtn.textContent = '继续';
+                } else {
+                    this.hideOverlay();
+                    this.pauseBtn.textContent = '暂停';
+                    this.lastDropTime = performance.now();
+                }
+            }
+
+            showPauseOverlay() {
+                this.overlayTitle.textContent = '已暂停';
+                this.overlayTitle.className = 'overlay-title paused';
+                this.overlayScore.innerHTML = '';
+                this.overlayBtn.textContent = '继续游戏';
+                this.overlay.classList.add('active');
+            }
+
+            showGameOverOverlay() {
+                this.overlayTitle.textContent = '游戏结束';
+                this.overlayTitle.className = 'overlay-title gameover';
+                this.overlayScore.innerHTML = `最终得分: <span>${this.score}</span>`;
+                this.overlayBtn.textContent = '再来一局';
+                this.overlay.classList.add('active');
+            }
+
+            hideOverlay() {
+                this.overlay.classList.remove('active');
+            }
+
+            gameOver() {
+                this.gameState = 'gameover';
+                cancelAnimationFrame(this.animationId);
+                this.showGameOverOverlay();
+                this.startBtn.textContent = '开始游戏';
+                this.startBtn.disabled = false;
+                this.pauseBtn.disabled = true;
+                this.pauseBtn.textContent = '暂停';
+            }
+
+            handleOverlayClick() {
+                if (this.gameState === 'gameover') {
+                    this.startGame();
+                } else if (this.isPaused) {
+                    this.togglePause();
+                }
+            }
+
+            restartGame() {
+                cancelAnimationFrame(this.animationId);
+                this.gameState = 'ready';
+                this.isPaused = false;
+                this.hideOverlay();
+                this.resetGame();
+                this.startBtn.textContent = '开始游戏';
+                this.startBtn.disabled = false;
+                this.pauseBtn.disabled = true;
+                this.pauseBtn.textContent = '暂停';
+            }
+        }
+
+        const game = new Tetris();
+    </script>
+</body>
+</html>
