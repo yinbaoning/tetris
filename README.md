@@ -1,73 +1,122 @@
-# React + TypeScript + Vite
+# 俄罗斯方块游戏 (Tetris Pro)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+一款基于现代 Web 技术构建的经典俄罗斯方块游戏，融合了复古游戏情怀与现代视觉设计。
 
-Currently, two official plugins are available:
+## 项目简介
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+本项目是一款功能完整的俄罗斯方块在线游戏，采用现代化的技术栈实现，提供了流畅的游戏体验和精美的视觉效果。游戏继承了经典俄罗斯方块的核心玩法，同时加入了现代游戏界面设计，让玩家能够在网页端体验到原汁原味的方块消除乐趣。
 
-## React Compiler
+## 核心技术
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+本项目采用以下主流前端技术构建：
 
-## Expanding the ESLint configuration
+- **React 18** - Facebook 推出的声明式组件化 UI 库，用于构建用户界面
+- **TypeScript** - JavaScript 的超集，提供强类型支持，提高代码质量和可维护性
+- **Vite** - 下一代前端构建工具，提供极快的开发服务器启动和热更新体验
+- **Canvas API** - HTML5 画布技术，用于高性能的 游戏渲染
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 功能特性
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### 游戏核心功能
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+本游戏实现了完整的俄罗斯方块游戏核心机制，包括七种经典方块形状（I、O、T、L、J、S、Z），每种方块都有独特的颜色标识。方块会从顶部随机下落，玩家可以通过键盘控制方块的移动、旋转和快速下落。游戏采用经典的行消除机制，当一行被完全填满时，该行将被消除并获得相应分数。
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### 随机系统
+
+游戏采用 7-Bag 随机算法，确保每种方块类型都会公平出现，避免了连续出现同种方块或长期缺少某种方块的情况，提升了游戏的公平性和策略性。
+
+### 视觉效果
+
+游戏界面采用现代化的暗色主题设计，配合霓虹风格的配色方案，营造出科技感和游戏氛围。每个方块都带有渐变填充、边框高光和发光效果，行消除时会有闪烁动画反馈。幽灵方块功能可以预览硬降位置，帮助玩家进行策略规划。
+
+### 响应式设计
+
+游戏支持多种屏幕尺寸，从桌面显示器到移动设备都能获得良好的游戏体验。界面会根据窗口大小自动调整单元格尺寸，确保游戏面板始终适合当前屏幕。
+
+## 操作说明
+
+### 键盘控制
+
+| 按键 | 功能 |
+|------|------|
+| ← → | 左右移动方块 |
+| ↑ / W | 顺时针旋转方块 |
+| ↓ / S | 软降（加速下落） |
+| 空格键 | 硬降（直接落到底部） |
+| P / Escape | 暂停/继续游戏 |
+
+### 游戏流程
+
+1. **开始游戏**：点击"开始游戏"按钮或按任意方向键开始
+2. **游戏进行**：通过键盘控制方块下落和消除
+3. **升级系统**：每消除 10 行升一级，下落速度逐渐加快
+4. **游戏结束**：当新方块无法放置时游戏结束，显示最终得分
+
+## 计分规则
+
+游戏采用等级乘数计分系统：
+
+- 消除 1 行：100 分 × 等级
+- 消除 2 行：300 分 × 等级
+- 消除 3 行：500 分 × 等级
+- 消除 4 行（满包）：800 分 × 等级
+- 硬降奖励：每下落 1 格额外获得 2 分
+
+## 项目结构
+
+```
+tetris-pro/
+├── src/
+│   ├── components/       # React 组件
+│   │   ├── GameCanvas.tsx       # 主游戏画布
+│   │   ├── PreviewCanvas.tsx   # 下一个方块预览
+│   │   ├── GameOverlay.tsx     # 游戏遮罩层
+│   │   └── KeyboardHints.tsx   # 操作提示
+│   ├── hooks/            # 自定义 React Hooks
+│   │   ├── useTetris.ts        # 游戏核心逻辑
+│   │   ├── useKeyboard.ts      # 键盘事件处理
+│   │   └── useResponsive.ts   # 响应式布局
+│   ├── utils/            # 工具函数
+│   │   └── tetrisUtils.ts      # 游戏算法
+│   └── types/            # TypeScript 类型定义
+│       └── index.ts
+├── public/               # 静态资源
+└── package.json          # 项目依赖配置
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 本地运行
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+确保已安装 Node.js 环境，然后执行以下命令启动项目：
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+# 安装依赖
+npm install
+
+# 启动开发服务器
+npm run dev
 ```
+
+打开浏览器访问显示的本地地址（通常是 http://localhost:5173）即可开始游戏。
+
+## 构建部署
+
+```bash
+# 构建生产版本
+npm run build
+```
+
+构建完成后，生成的文件位于 `dist` 目录，可以部署到任何静态网页托管服务。
+
+## 扩展开发
+
+项目中预留了多个扩展点，方便后续功能增强：
+
+- 计分系统支持 T-Spin 检测
+- 完整的 SRS 旋转系统
+- 自定义键盘按键绑定
+- 游戏音效和背景音乐
+- 排行榜功能
+
+## 许可证
+
+本项目仅供学习交流使用。
